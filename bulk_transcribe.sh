@@ -195,7 +195,7 @@ Response (just the format, nothing else):"
         }" 2>/dev/null)
     
     if [ $? -eq 0 ] && [ -n "$response" ]; then
-        local extracted=$(echo "$response" | jq -r '.response' 2>/dev/null | tr -d '\n' | grep -oE '([0-9]{4}-[0-9]{2}-[0-9]{2}_[0-9]{4}|[0-9]{4}-[0-9]{2}-[0-9]{2}|[0-9]{4}|NONE)' | head -1)
+        local extracted=$(echo "$response" | jq -r '.response' 2>/dev/null | tr -d '\n' | grep -oE '[0-9]{4}-[0-9]{2}-[0-9]{2}_[0-9]{4}|[0-9]{4}-[0-9]{2}-[0-9]{2}|[0-9]{4}|NONE' | head -1)
         if [ -n "$extracted" ] && [ "$extracted" != "NONE" ]; then
             echo "LLM_EXTRACTED: $extracted"
             return 0
