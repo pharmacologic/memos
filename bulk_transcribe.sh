@@ -11,7 +11,7 @@ HASH_CACHE="$OUTPUT_DIR/.file_hashes"
 # Optional features (set to empty string to disable)
 OPENVINO_SETUP="/nvme/openvino/runtime/setupvars.sh"  # Set to "" to disable OpenVINO
 VAD_MODEL_PATH="models/ggml-silero-v5.1.2.bin"       # Set to "" to disable VAD
-OLLAMA_BASE_URL="http://192.168.1.106:11434"              # Set to "" to disable LLM extraction
+OLLAMA_BASE_URL="http://localhost:11434"              # Set to "" to disable LLM extraction
 OLLAMA_MODEL="llama3.2:3b"
 
 # Whisper configuration
@@ -367,8 +367,8 @@ build_whisper_command() {
     fi
     
     # Add device configuration
-    if [ -n "$OPENVINO_SETUP" ] && [ "$OPENVINO_DEVICE" = "GPU" ]; then
-        cmd="$cmd --ov-e-device GPU"
+    if [ -n "$OPENVINO_SETUP" ] && [ -n "$OPENVINO_DEVICE" ]; then
+        cmd="$cmd --ov-e-device $OPENVINO_DEVICE"
     fi
     
     # Add language if not auto
