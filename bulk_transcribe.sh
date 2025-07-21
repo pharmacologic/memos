@@ -15,6 +15,8 @@ OLLAMA_BASE_URL="http://localhost:11434"              # Set to "" to disable LLM
 OLLAMA_MODEL="llama3.2:3b"
 
 # Whisper configuration
+WHISPER_MODE="cli"  # "cli" for whisper-cli, "server" for whisper-server
+WHISPER_SERVER_URL="http://localhost:8080"  # URL if using server mode
 OPENVINO_DEVICE="GPU"  # GPU, CPU, or AUTO (only affects OpenVINO encoder)
 WHISPER_LANGUAGE="auto"  # auto, en, es, fr, etc.
 WHISPER_EXTRA_FLAGS=""  # Additional whisper flags, e.g., "--no-timestamps --ml 0"
@@ -107,14 +109,48 @@ extract_datetime_from_transcript() {
     fi
     
     # First try explicit pattern matching on entire transcript
-    local explicit_match=$(grep -iE "(today is|the time is|it's|it is).*(january|february|march|april|may|june|july|august|september|october|november|december|[0-9]{1,2}:[0-9]{2}|[0-9]{1,2} (am|pm)|20[0-9]{2})" "$txt_file" | tail -1)
+    local explicit_match=$(grep -iE "(today is|the time is|it's|it is).*(january|february|march|april|may|june|july|august|september|october|november|december|[0-9]{1,2}:[0-9]{2}|[0-9]{1,2} (am|pm)|[0-9]{1,2} o'clock|20[0-9]{2})" "$txt_file" | tail -1)
     
+    # Check if we got a useful match (not just "it is" without a proper time/date)
     if [ -n "$explicit_match" ]; then
+        # Try to extract a structured format from the match
+        local time_only=$(echo "$explicit_match" | grep -oE "([0-9]{1,2}:[0-9]{2}(\s*(am|pm|AM|PM))?|[0-9]{1,2}\s*o'clock)" | tail -1)
+        local date_pattern=$(echo "$explicit_match" | grep -oE "(january|february|march|april|may|june|july|august|september|october|november|december)\s+[0-9]{1,2}" | tail -1)
+        
+        # If we found a clear time but no date, format it for LLM
+        if [ -n "$time_only" ] && [ -z "$date_pattern" ]; then
+            # Convert to 24h format if needed
+            local formatted_time=$(echo "$time_only" | awk '{
+                # Handle "o\'clock" format
+                if (match($0, /([0-9]+) o.clock/)) {
+                    hour = substr($0, RSTART, RLENGTH)
+                    gsub(/[^0-9]/, "", hour)
+                    printf "%02d00", hour
+                } else {
+                    # Handle HH:MM format
+                    time = $1
+                    ampm = tolower($2)
+                    split(time, parts, ":")
+                    hour = parts[1]
+                    min = parts[2]
+                    if (ampm == "pm" && hour != 12) hour += 12
+                    if (ampm == "am" && hour == 12) hour = 0
+                    printf "%02d%02d", hour, min
+                }
+            }')
+            
+            if [[ "$formatted_time" =~ ^[0-9]{4}$ ]]; then
+                echo "LLM_EXTRACTED: $formatted_time"
+                return 0
+            fi
+        fi
+        
+        # If pattern match found something but couldn't extract structured format,
+        # show it but continue to LLM
         echo "PATTERN_MATCH: $explicit_match"
-        return 0
     fi
     
-    # Fallback: Try LLM extraction if ollama is available
+    # Try LLM extraction if ollama is available
     if [ -n "$OLLAMA_BASE_URL" ] && command -v curl >/dev/null 2>&1 && command -v jq >/dev/null 2>&1; then
         extract_datetime_with_llm "$txt_file"
     fi
@@ -387,6 +423,38 @@ build_whisper_command() {
     echo "$cmd"
 }
 
+# Function to transcribe using whisper-server
+transcribe_with_server() {
+    local input_file="$1"
+    local output_prefix="$2"
+    
+    # Check if server is reachable
+    if ! curl -s -f "$WHISPER_SERVER_URL/health" >/dev/null 2>&1; then
+        echo "Error: whisper-server not reachable at $WHISPER_SERVER_URL"
+        return 1
+    fi
+    
+    # Send file to server
+    local response=$(curl -s -X POST \
+        -F "file=@$input_file" \
+        -F "language=$WHISPER_LANGUAGE" \
+        -F "output_format=all" \
+        "$WHISPER_SERVER_URL/transcribe")
+    
+    if [ $? -ne 0 ]; then
+        echo "Error: Failed to transcribe with server"
+        return 1
+    fi
+    
+    # Parse response and save outputs
+    # This assumes the server returns JSON with text, srt, and json fields
+    echo "$response" | jq -r '.text' > "${output_prefix}.txt"
+    echo "$response" | jq -r '.srt' > "${output_prefix}.srt"
+    echo "$response" | jq -r '.json' > "${output_prefix}.json"
+    
+    return 0
+}
+
 # Collect all audio files with metadata
 declare -A file_signatures
 declare -a files_to_process
@@ -458,14 +526,22 @@ for file in "${files_to_process[@]}"; do
     echo "Processing [$current_file/${#files_to_process[@]}]: $relative_path"
     echo "Output name: $output_name"
     
-    # Build and run whisper command
-    cd "$WHISPER_DIR"
-    whisper_cmd=$(build_whisper_command "$file" "$OUTPUT_DIR/$output_name")
-    echo "Command: $whisper_cmd"
+    # Transcribe using appropriate method
+    if [ "$WHISPER_MODE" = "server" ]; then
+        echo "Using whisper-server at $WHISPER_SERVER_URL"
+        transcribe_with_server "$file" "$OUTPUT_DIR/$output_name"
+        transcribe_result=$?
+    else
+        # Build and run whisper command
+        cd "$WHISPER_DIR"
+        whisper_cmd=$(build_whisper_command "$file" "$OUTPUT_DIR/$output_name")
+        echo "Command: $whisper_cmd"
+        
+        eval "$whisper_cmd"
+        transcribe_result=$?
+    fi
     
-    eval "$whisper_cmd"
-    
-    if [ $? -eq 0 ]; then
+    if [ $transcribe_result -eq 0 ]; then
         echo "✓ Successfully transcribed"
         
         # Try to extract datetime from transcript
