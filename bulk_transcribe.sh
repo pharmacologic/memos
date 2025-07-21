@@ -213,7 +213,7 @@ estimate_start_time() {
         
         # Extract SRT timestamp for lines containing time patterns
         # Format: HH:MM:SS,mmm --> HH:MM:SS,mmm
-        local matches=$(echo "$srt_content" | grep -B2 -E "(time is|it's|it is).*(${hours}:${minutes}|$((10#$hours % 12)):${minutes})" | grep -E "^[0-9]{2}:[0-9]{2}:[0-9]{2},[0-9]{3}" | tail -1)
+        local matches=$(echo "$srt_content" | grep -B2 -E "(time is|it's|it is)( currently)?.*(${hours}:${minutes}|$((10#$hours % 12)):${minutes})" | grep -E "^[0-9]{2}:[0-9]{2}:[0-9]{2},[0-9]{3}" | tail -1)
         
         if [ -n "$matches" ]; then
             # Extract the start timestamp (HH:MM:SS)
@@ -392,6 +392,8 @@ declare -A file_signatures
 declare -a files_to_process
 
 echo "Scanning for audio files and detecting duplicates..."
+echo "Looking in: $INPUT_DIR"
+echo "File patterns: $AUDIO_FORMATS"
 
 # Find all audio files, sort by path for consistent ordering
 while IFS= read -r -d '' file; do
@@ -414,7 +416,7 @@ while IFS= read -r -d '' file; do
     file_signatures[$signature]="$file"
     files_to_process+=("$file")
     
-done < <(find "$INPUT_DIR" -type f -iregex ".*\.\($AUDIO_FORMATS\)$" -print0 | sort -z)
+done < <(find "$INPUT_DIR" -type f \( -iname "*.mp3" -o -iname "*.wav" -o -iname "*.flac" \) -print0 | sort -z)
 
 echo "Found ${#files_to_process[@]} unique audio files to process"
 
