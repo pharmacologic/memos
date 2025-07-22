@@ -260,6 +260,8 @@ def interview_mode(memo_id):
         print(f"\nInterview saved to: {output_file}")
 
 def main():
+    global MODEL_NAME
+    
     parser = argparse.ArgumentParser(description="Writing assistant for voice memos")
     parser.add_argument("--list-ideas", action="store_true", help="List all writing ideas")
     parser.add_argument("--develop", help="Develop ideas from specific memo")
@@ -269,7 +271,6 @@ def main():
     
     args = parser.parse_args()
     
-    global MODEL_NAME
     MODEL_NAME = args.model
     
     ensure_writing_dir()

@@ -239,6 +239,8 @@ def create_daily_summary(date_str=None):
     print(f"Daily summary saved to {summary_file}")
 
 def main():
+    global MODEL_NAME
+    
     parser = argparse.ArgumentParser(description="Process voice memo transcripts")
     parser.add_argument("--memo", help="Process specific memo (e.g., memo_0001)")
     parser.add_argument("--all", action="store_true", help="Process all unprocessed memos")
@@ -247,7 +249,6 @@ def main():
     
     args = parser.parse_args()
     
-    global MODEL_NAME
     MODEL_NAME = args.model
     
     ensure_directories()
