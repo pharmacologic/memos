@@ -3,21 +3,21 @@
 # Configuration
 WHISPER_DIR="$HOME/software/whisper.cpp"
 MODEL_PATH="models/ggml-large-v3-turbo.bin"
-INPUT_DIR="/mnt/gpx"
+INPUT_DIR="/mnt/voice_recorder"
 OUTPUT_DIR="/mnt/voice_memos"
 COUNTER_FILE="$OUTPUT_DIR/.last_counter"
 HASH_CACHE="$OUTPUT_DIR/.file_hashes"
 
 # Optional features (set to empty string to disable)
-OPENVINO_SETUP="/nvme/openvino/runtime/setupvars.sh"  # Set to "" to disable OpenVINO
 VAD_MODEL_PATH="models/ggml-silero-v5.1.2.bin"       # Set to "" to disable VAD
+OPENVINO_SETUP="/opt/openvino/runtime/setupvars.sh"  # Set to "" to disable OpenVINO
+OPENVINO_DEVICE="GPU"         # CPU, GPU, NPU, or AUTO (only affects OpenVINO encoder)
 OLLAMA_BASE_URL="http://localhost:11434"              # Set to "" to disable LLM extraction
 OLLAMA_MODEL="llama3.2:3b"
 
 # Whisper configuration
 WHISPER_MODE="cli"  # "cli" for whisper-cli, "server" for whisper-server
 WHISPER_SERVER_URL="http://localhost:8080"  # URL if using server mode
-OPENVINO_DEVICE="GPU"  # GPU, CPU, or AUTO (only affects OpenVINO encoder)
 WHISPER_LANGUAGE="auto"  # auto, en, es, fr, etc.
 WHISPER_EXTRA_FLAGS=""  # Additional whisper flags, e.g., "--no-timestamps --ml 0"
 
