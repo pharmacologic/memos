@@ -21,6 +21,18 @@ The setup script:
 
 ## Core Commands
 
+### Transcribe audio files:
+```bash
+# Bulk transcription (configure paths in script first)
+./bulk_transcribe.sh
+
+# Key configuration variables in bulk_transcribe.sh:
+# - WHISPER_DIR: Path to whisper.cpp installation
+# - INPUT_DIR: Directory containing audio files
+# - OUTPUT_DIR: Where to save transcripts (typically /mnt/voice_memos)
+# - MODEL_PATH: Whisper model to use
+```
+
 ### Process voice memos:
 ```bash
 # Process all new memos
@@ -65,21 +77,31 @@ python3 writing_assistant.py --resume /mnt/voice_memos/writing_projects/memo_004
 
 ### Core Components
 
-1. **process_memos.py** - Main analysis pipeline that processes voice memo transcripts through four focused analyses:
+1. **bulk_transcribe.sh** - Advanced whisper.cpp-based transcription script with:
+   - Batch processing with duplicate detection using file signatures
+   - Smart datetime extraction from spoken content for automatic file naming
+   - OpenVINO acceleration and VAD (Voice Activity Detection) support
+   - LLM-powered timestamp analysis for accurate recording start time estimation
+   - Comprehensive logging and error handling
+
+2. **process_memos.py** - Main analysis pipeline that processes voice memo transcripts through four focused analyses:
    - Projects: Extracts project ideas, updates, and planning
    - Tasks: Identifies actionable items, reminders, and deadlines
    - Personal: Analyzes mood, sleep quality, stress indicators
    - Writing: Extracts writing ideas, rough drafts, and notable phrases
 
-2. **writing_assistant.py** - Writing development tool that helps expand voice memo content into structured writing projects with interview modes and draft creation. Features both legacy static interviews and enhanced AI-powered interactive interviews with context awareness.
+3. **writing_assistant.py** - Writing development tool that helps expand voice memo content into structured writing projects with interview modes and draft creation. Features both legacy static interviews and enhanced AI-powered interactive interviews with context awareness.
 
-3. **setup.sh** - Configuration script that handles Ollama server setup, model detection, and directory structure creation.
+4. **setup.sh** - Configuration script that handles Ollama server setup, model detection, and directory structure creation.
+
+5. **usb_auto_sync.sh** - USB auto-mounting and syncing system for voice recorders with systemd service integration.
 
 ### Data Flow
 
-1. Voice memos are transcribed to `/mnt/voice_memos/memo_*.txt`
-2. `process_memos.py` analyzes transcripts and saves structured JSON to `/mnt/voice_memos/analysis/`
-3. `writing_assistant.py` processes writing analyses to create developed content in `/mnt/voice_memos/writing_projects/`
+1. **Audio Collection**: Voice recorder files are synced via USB auto-sync or manual copy to input directory
+2. **Transcription**: `bulk_transcribe.sh` processes audio files through whisper.cpp, creating `.txt`, `.json`, and `.srt` files with smart naming
+3. **Analysis**: `process_memos.py` analyzes transcripts and saves structured JSON to `/mnt/voice_memos/analysis/`
+4. **Writing Development**: `writing_assistant.py` processes writing analyses to create developed content in `/mnt/voice_memos/writing_projects/`
 
 ### Directory Structure
 ```
@@ -130,6 +152,41 @@ The `--interactive` mode provides AI-powered writing coaching with:
 
 ## Dependencies
 
-- Python 3 with `requests` library
-- Ollama server running locally or on network
-- Compatible models: llama3.2:3b, llama3.1:8b, mistral:7b, qwen2.5:3b, phi3:3.8b
+### Core Requirements
+- **whisper.cpp** compiled with CLI support (`whisper-cli` binary)
+- **Python 3** with `requests` library
+- **Ollama server** running locally or on network
+- **curl** and **jq** for API interactions and JSON processing
+- **bash** shell for scripts
+
+### Optional Enhancements
+- **OpenVINO** for hardware acceleration
+- **VAD model** (Silero) for voice activity detection
+- **systemd** and **udev** for USB auto-sync functionality
+- **rsync** for file synchronization
+
+### Compatible Ollama Models
+- llama3.2:3b (default, recommended)
+- llama3.1:8b (higher quality)
+- mistral:7b (alternative)
+- qwen2.5:3b, phi3:3.8b (lightweight options)
+
+## Transcription Features
+
+### Smart Datetime Extraction
+The transcription script can automatically extract timestamps from spoken content and use them for intelligent file naming:
+
+- **Pattern matching**: Recognizes phrases like "today is", "the time is", "it's currently"
+- **LLM analysis**: Uses Ollama to extract structured datetime from transcript content
+- **Recording time estimation**: Calculates actual recording start time by analyzing SRT timestamps
+- **Flexible formats**: Supports various datetime formats (full datetime, date-only, time-only)
+
+### Duplicate Detection
+- **File signatures**: Uses size + hash samples from beginning/middle/end of files
+- **Batch processing**: Maintains cache across multiple runs
+- **Efficient comparison**: Avoids re-transcribing identical files
+
+### OpenVINO Integration
+- **Hardware acceleration**: Supports CPU, GPU, NPU acceleration
+- **Automatic setup**: Sources OpenVINO environment when available
+- **Device selection**: Configurable target device (CPU/GPU/NPU/AUTO)
