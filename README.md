@@ -84,8 +84,8 @@ pip3 install requests
 ### 2. Configure the System
 ```bash
 # Clone this repository
-git clone <your-repo-url>
-cd voice-memo-analysis
+git clone https://github.com/pharmacologic/memos
+cd memos
 
 # Run setup script (configures Ollama connection and creates directories)
 ./setup.sh
@@ -340,7 +340,7 @@ sudo chown -R $USER:$USER /mnt/voice_memos
 
 ## License
 
-[Specify your license here]
+[GNU General Public License](https://www.gnu.org/licenses/gpl-3.0.en.html)
 
 ## Acknowledgments
 
