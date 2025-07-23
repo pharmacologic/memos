@@ -34,7 +34,7 @@ def call_ollama(prompt, model=MODEL_NAME):
                     "top_p": 0.9
                 }
             },
-            timeout=180
+            timeout=300
         )
         response.raise_for_status()
         return response.json()["response"]
